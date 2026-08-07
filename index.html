@@ -558,6 +558,8 @@
       scenVals: vals.join(", "),
       stateLabel: PERS_LABEL[st],
       personType: document.getElementById("personType").options[document.getElementById("personType").selectedIndex].text,
+      pctLbl: pctLbl,
+      isArea: mode==="area",
       aOcup: aOcup,
       aOcupLabel: mode==="area" ? "N×A_ocup/S×100" : "N/asientos×100",
       pK: pK,
@@ -656,6 +658,9 @@
         ? fmt(ro.pctReq)+"% solicitado · "+fmt(ro.pctReal)+"% real"
         : fmt(ro.pctReal)+"% de ocupación";
       h += '<div class="cap">'+pctShow+' · '+ro.N+' personas ('+esc(r.stateLabel)+')</div>';
+      h += '<div class="rp">'+esc(r.baseName)+' · '+esc(r.baseLabel)+' · % '+esc(r.pctLbl)
+        + (r.isArea ? ' · densidad '+fmt(ro.dens)+' pers/m²' : '')
+        + ' · '+esc(r.personType)+' (k='+fmt(r.pK)+')</div>';
       h += tableHtml(BL.concat(["NRC"]), [ro.aEff.map(fmt).concat('<b>'+fmt(ro.nrc)+'</b>')]);
     });
 
