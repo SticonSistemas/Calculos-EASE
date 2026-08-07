@@ -141,6 +141,16 @@
         <input type="number" id="aOcupSit" value="0.5" min="0.01" step="any">
         <input type="number" id="aOcupStand" value="0.25" min="0.01" step="any" class="hidden">
       </div>
+      <div class="row">
+        <label>Tipo de persona (valor estándar)</label>
+        <select id="personType" onchange="onPersonType()">
+          <option value="adulto">Adulto</option>
+          <option value="joven">Joven</option>
+          <option value="nino">Niño</option>
+          <option value="mixto">Mixto</option>
+        </select>
+      </div>
+      <div class="desc">Seleccionar un tipo rellena A_ocup con su valor estándar (editable tras aplicarlo).</div>
       <div class="desc" id="ocupRelDesc">% ocupación = N × A_ocup / S × 100</div>
     </div>
 
@@ -226,6 +236,12 @@
   const PERS_OCT = { sit:[0.32,0.44,0.50,0.60,0.65,0.55], stand:[0.35,0.50,0.60,0.70,0.70,0.60] };
   const PERS_DEF = { sit: expandOct(PERS_OCT.sit), stand: expandOct(PERS_OCT.stand) };
   const PERS_LABEL = { sit:"sentadas", stand:"de pie" };
+  const PERS_TYPES = {
+    nino:   { sit: 0.35, stand: 0.18 },
+    joven:  { sit: 0.45, stand: 0.20 },
+    adulto: { sit: 0.50, stand: 0.25 },
+    mixto:  { sit: 0.45, stand: 0.22 }
+  };
 
   let source = "lib";
 
@@ -371,6 +387,13 @@
     updateRelDesc();
   }
 
+  function onPersonType(){
+    const t = document.getElementById("personType").value;
+    const v = PERS_TYPES[t];
+    document.getElementById("aOcupSit").value = v.sit;
+    document.getElementById("aOcupStand").value = v.stand;
+  }
+
   function updateRelDesc(){
     const mode = document.getElementById("modeSel").value;
     const st = document.getElementById("personState").value;
@@ -487,6 +510,7 @@
       primaryLabel: {pct:"% de ocupación", pers:"Nº de personas", dens:"Densidad (pers/m²)"}[primary],
       scenVals: vals.join(", "),
       stateLabel: PERS_LABEL[st],
+      personType: document.getElementById("personType").options[document.getElementById("personType").selectedIndex].text,
       aOcup: aOcup,
       aOcupLabel: mode==="area" ? "N×A_ocup/S×100" : "N/asientos×100",
       persAbs: persAbs,
@@ -568,6 +592,7 @@
       ["Parámetro primario de ocupación", esc(r.primaryLabel)],
       ["Valores evaluados", esc(r.scenVals)],
       ["Estado de las personas", esc(r.stateLabel)],
+      ["Tipo de persona", esc(r.personType)],
       ["Área física por persona A_ocup (m²)", esc(r.aOcup)+" · "+esc(r.aOcupLabel)]
     ]);
     h += '<div class="cap">Absorción del material base α_base (f)</div>';
@@ -599,6 +624,7 @@
   buildManual();
   buildPersona();
   onModeSel();
+  onPersonType();
   calcular();
 </script>
 </body>
