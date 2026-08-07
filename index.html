@@ -157,6 +157,7 @@
     <div class="panel">
       <h2>3 · Absorción por persona A_persona(f) — m²</h2>
       <p class="desc" style="margin-top:-6px">Editables · la fila activa depende del estado. Valores de referencia (bibliografía acústica).</p>
+      <div class="desc" id="kInfo"></div>
       <div class="scroll">
         <div id="personaWrap"></div>
       </div>
@@ -237,10 +238,10 @@
   const PERS_DEF = { sit: expandOct(PERS_OCT.sit), stand: expandOct(PERS_OCT.stand) };
   const PERS_LABEL = { sit:"sentadas", stand:"de pie" };
   const PERS_TYPES = {
-    nino:   { sit: 0.35, stand: 0.18 },
-    joven:  { sit: 0.45, stand: 0.20 },
-    adulto: { sit: 0.50, stand: 0.25 },
-    mixto:  { sit: 0.45, stand: 0.22 }
+    nino:   { sit: 0.35, stand: 0.18, k: 0.70 },
+    joven:  { sit: 0.45, stand: 0.20, k: 0.85 },
+    adulto: { sit: 0.50, stand: 0.25, k: 1.00 },
+    mixto:  { sit: 0.47, stand: 0.23, k: 0.93 }
   };
 
   let source = "lib";
@@ -392,6 +393,8 @@
     const v = PERS_TYPES[t];
     document.getElementById("aOcupSit").value = v.sit;
     document.getElementById("aOcupStand").value = v.stand;
+    document.getElementById("kInfo").textContent =
+      "A_persona efectiva = referencia × k · k("+t+") = "+v.k.toFixed(2);
   }
 
   function updateRelDesc(){
@@ -421,6 +424,9 @@
     const baseAbs = getBaseAbsorption();
     const st = document.getElementById("personState").value;
     const persAbs = getPersonTable(st);
+    const pType = document.getElementById("personType").value;
+    const pK = PERS_TYPES[pType].k;
+    const persAbsEff = persAbs.map(v=>v*pK);
     const aOcup = parseFloat(document.getElementById(st==="sit"?"aOcupSit":"aOcupStand").value);
 
     if(mode==="area"){ if(!isFinite(S)||S<=0) msg="Introduce una superficie S válida (>0)."; }
@@ -461,10 +467,10 @@
       }
 
       const aEff = baseAbs.map((ab,i)=>{
-        const A = (mode==="area" ? S*ab : seats*ab) + N*persAbs[i];
+        const A = (mode==="area" ? S*ab : seats*ab) + N*persAbsEff[i];
         return Math.min(1, A/Sdiv);
       });
-      const raw = baseAbs.map((ab,i)=> (mode==="area" ? S*ab : seats*ab) + N*persAbs[i]);
+      const raw = baseAbs.map((ab,i)=> (mode==="area" ? S*ab : seats*ab) + N*persAbsEff[i]);
       const capped = raw.some((A,i)=> A/Sdiv > 1);
       const nrc = NRC_IDX.reduce((s,i)=>s+aEff[i],0)/4;
       rows.push({N, pctReq, pctReal, dens: mode==="area" ? N/S : null, aEff, nrc, capped});
@@ -484,6 +490,8 @@
       : "Manual";
     const baseLabel = mode==="area" ? "S = "+S+" m²" : seats+" asientos";
     const pctLbl = primary==="pct" ? "primario" : "derivado";
+    const typeSel = document.getElementById("personType");
+    const typeLabel = typeSel.options[typeSel.selectedIndex].text;
 
     let html = "";
     rows.forEach(r=>{
@@ -491,7 +499,7 @@
         ? fmt(r.pctReq)+"% solicitado · "+fmt(r.pctReal)+"% real"
         : fmt(r.pctReal)+"% de ocupación";
       html += '<div class="res-cap">'+pctShow+' · '+r.N+' personas ('+PERS_LABEL[st]+')</div>';
-      html += '<div class="res-sub">'+baseDesc+' · '+baseLabel+' · % '+pctLbl+(mode==="area"?' · densidad '+fmt(r.dens)+' pers/m²':'')+'</div>';
+      html += '<div class="res-sub">'+baseDesc+' · '+baseLabel+' · % '+pctLbl+(mode==="area"?' · densidad '+fmt(r.dens)+' pers/m²':'')+' · '+typeLabel+' (k='+fmt(pK)+')'+'</div>';
       html += '<div class="scroll"><table class="res"><tr><th></th>';
       BL.forEach(b=>html+='<th>'+b+'</th>');
       html += '<th>NRC</th></tr><tr><th>α_eff</th>';
@@ -513,7 +521,9 @@
       personType: document.getElementById("personType").options[document.getElementById("personType").selectedIndex].text,
       aOcup: aOcup,
       aOcupLabel: mode==="area" ? "N×A_ocup/S×100" : "N/asientos×100",
-      persAbs: persAbs,
+      pK: pK,
+      persAbsRef: persAbs,
+      persAbs: persAbsEff,
       rows: rows,
       warnings: warnings
     };
@@ -593,11 +603,12 @@
       ["Valores evaluados", esc(r.scenVals)],
       ["Estado de las personas", esc(r.stateLabel)],
       ["Tipo de persona", esc(r.personType)],
+      ["Factor de absorción por tipo k", fmt(r.pK)+" (A_persona efectiva = referencia × k)"],
       ["Área física por persona A_ocup (m²)", esc(r.aOcup)+" · "+esc(r.aOcupLabel)]
     ]);
     h += '<div class="cap">Absorción del material base α_base (f)</div>';
     h += tableHtml(BL, [r.baseAbs.map(fmt)]);
-    h += '<div class="cap">Absorción por persona A_persona (f) · '+esc(r.stateLabel)+' (m²)</div>';
+    h += '<div class="cap">Absorción por persona A_persona (f) efectiva · '+esc(r.stateLabel)+' (m²) · referencia × k='+fmt(r.pK)+'</div>';
     h += tableHtml(BL, [r.persAbs.map(fmt)]);
 
     h += '<h2>2 · Resultados α_eff para EASE</h2>';
