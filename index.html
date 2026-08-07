@@ -127,8 +127,16 @@
       <div class="row">
         <label id="valsLabel">Valores de % de ocupación</label>
         <input type="text" id="scenVals" value="25, 50, 75, 100" style="width:200px">
+        <select id="densSel" class="hidden" onchange="onDensSel()">
+          <option value="1">1 pers/m²</option>
+          <option value="2" selected>2 pers/m²</option>
+          <option value="3">3 pers/m²</option>
+          <option value="4">4 pers/m²</option>
+          <option value="5">5 pers/m²</option>
+          <option value="6">6 pers/m²</option>
+        </select>
       </div>
-      <div class="desc">Lista separada por comas (ej.: 25, 50, 75, 100)</div>
+      <div class="desc" id="valsHint">Lista separada por comas (ej.: 25, 50, 75, 100)</div>
       <div class="row" style="margin-top:10px">
         <label>Estado de las personas</label>
         <select id="personState" onchange="onPersonState()">
@@ -370,10 +378,31 @@
     const p = document.getElementById("primarySel").value;
     const lbl = document.getElementById("valsLabel");
     const inp = document.getElementById("scenVals");
-    const defs = { pct:["Valores de % de ocupación","25, 50, 75, 100"], pers:["Valores de nº de personas","50, 100, 150, 200"], dens:["Valores de densidad (pers/m²)","1, 2, 3"] };
+    const densSel = document.getElementById("densSel");
+    const hint = document.getElementById("valsHint");
+    const defs = { pct:["Valores de % de ocupación","25, 50, 75, 100"], pers:["Valores de nº de personas","50, 100, 150, 200"], dens:["Densidad (pers/m²)","2"] };
     lbl.textContent = defs[p][0];
-    if(!inp.dataset.touched) inp.value = defs[p][1];
+    if(p==="dens"){
+      inp.classList.add("hidden");
+      densSel.classList.remove("hidden");
+      hint.textContent = "Máximo aceptable: 6 pers/m² (aforo de pie).";
+      if(!densSel.dataset.touched){
+        const cur = parseFloat(document.getElementById("aOcupStand").value);
+        densSel.value = Math.round(1/Math.max(cur,0.01)).toString();
+        if(![1,2,3,4,5,6].includes(parseInt(densSel.value))) densSel.value = "2";
+      }
+      densSel.dataset.touched = "1";
+    } else {
+      inp.classList.remove("hidden");
+      densSel.classList.add("hidden");
+      hint.textContent = "Lista separada por comas (ej.: "+defs[p][1]+")";
+      if(!inp.dataset.touched) inp.value = defs[p][1];
+    }
     updateRelDesc();
+  }
+
+  function onDensSel(){
+    document.getElementById("densSel").dataset.touched = "1";
   }
 
   document.getElementById("scenVals").addEventListener("input", function(){ this.dataset.touched = "1"; });
@@ -434,8 +463,18 @@
     if(!isFinite(aOcup)||aOcup<=0) msg="Área física por persona A_ocup inválida.";
 
     const primary = document.getElementById("primarySel").value;
-    const vals = parseList(document.getElementById("scenVals").value);
+    const vals = parseList(primary==="dens"
+      ? document.getElementById("densSel").value
+      : document.getElementById("scenVals").value);
     if(vals.length===0) msg = "Introduce al menos un valor en la lista.";
+
+    if(primary==="pers" && mode==="area" && isFinite(S) && S>0){
+      const maxAdm = Math.floor(S*6);
+      vals.forEach(v=>{
+        const N = Math.round(v);
+        if(N > maxAdm) msg = "Error: "+N+" personas superan el máximo aceptable de "+maxAdm+" personas (S = "+S+" m² × 6 pers/m²). Densidades > 6 pers/m² no son realistas.";
+      });
+    }
 
     if(msg){ outmsg.textContent = msg; outmsg.style.color = "var(--err)"; results.innerHTML=""; return; }
     outmsg.style.color = "var(--ok)";
