@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cálculo Absorción EASE</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273449; --line:#334155;
+    --txt:#e2e8f0; --mut:#94a3b8; --acc:#38bdf8; --ok:#34d399; --err:#f87171;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--txt);font-family:system-ui,"Segoe UI",Arial,sans-serif;margin:0;padding:24px}
+  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+  h1{font-size:22px;margin:0;color:var(--acc)}
+  h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);margin:0 0 12px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:20px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+  .row label{flex:1;min-width:160px;font-size:13px;color:var(--mut)}
+  .desc{font-size:12px;color:var(--mut)}
+  input[type=number],input[type=text],select{
+    background:var(--panel2);color:var(--txt);border:1px solid var(--line);
+    border-radius:8px;padding:7px 10px;font-size:14px;width:120px
+  }
+  input[type=number]{width:110px}
+  button{background:var(--acc);color:#06202e;border:none;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer}
+  button:hover{filter:brightness(1.1)}
+  button.sec{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+  .outmsg{font-size:12px;color:var(--ok);min-height:16px;display:block;margin-top:8px}
+  .badge{background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:2px 10px;font-size:12px;color:var(--mut)}
+  .tabs{display:flex;gap:6px;margin-bottom:12px}
+  .tab{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 14px;font-size:13px;color:var(--mut);cursor:pointer}
+  .tab.on{background:var(--acc);color:#06202e;font-weight:600}
+  .scroll{overflow-x:auto}
+  .num-row{display:grid;grid-template-columns:repeat(7,62px);gap:4px;margin-bottom:8px;width:max-content}
+  .num-row label{font-size:10px;color:var(--mut);display:block;text-align:center;margin-bottom:2px}
+  .num-row input{width:100%;font-size:12px;padding:4px 2px;text-align:center}
+  .prow{display:flex;gap:4px;margin-bottom:8px;width:max-content}
+  .pcell{display:flex;flex-direction:column;align-items:center;gap:2px;width:52px}
+  .pcell span{font-size:10px;color:var(--mut)}
+  .pcell input{width:100%;font-size:12px;padding:4px 2px;text-align:center}
+  .prow.sel .pcell input{outline:2px solid var(--acc)}
+  table.res{border-collapse:collapse;margin:8px 0 16px;width:100%}
+  table.res th,table.res td{border:1px solid var(--line);padding:4px 7px;text-align:center;font-size:12px;white-space:nowrap}
+  table.res th{background:var(--panel2);color:var(--acc);font-weight:600}
+  table.res td.nrc{color:var(--ok);font-weight:600;background:var(--panel2)}
+  .res-cap{font-size:14px;font-weight:700;color:var(--txt);margin:14px 0 2px}
+  .res-sub{font-size:12px;color:var(--mut);margin-bottom:6px}
+  textarea{width:100%;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px;font-family:Consolas,monospace;font-size:12px;min-height:150px;resize:vertical}
+  footer{margin-top:20px;font-size:11px;color:var(--mut)}
+  .hidden{display:none}
+  #printArea{display:none}
+  .pcell.lbl-item{width:64px;align-items:flex-start;justify-content:center}
+  .pcell.lbl-item span{font-weight:700;font-size:12px;color:var(--txt)}
+  .prow.sel .pcell.lbl-item span{color:var(--acc)}
+  @media print{
+    body{background:#fff;color:#000}
+    header,.grid,footer{display:none !important}
+    #printArea{display:block;width:100%}
+    #printArea table{border-collapse:collapse;width:100%;page-break-inside:avoid}
+    #printArea th,#printArea td{border:1px solid #000;padding:3px 4px;text-align:center;font-size:9px}
+    #printArea th{background:#eee}
+    #printArea h1{font-size:18px}
+    #printArea h2{font-size:13px;text-transform:uppercase;color:#000;margin:14px 0 4px}
+    #printArea .rp{font-size:11px;color:#000;margin:2px 0}
+    #printArea .cap{margin:10px 0 2px;font-size:11px;font-weight:bold}
+    #printArea .note{font-size:10px;color:#333;margin-top:12px;border-top:1px solid #999;padding-top:4px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Cálculo Absorción EASE</h1>
+  <span class="badge">21 bandas · α_eff(f) = (A_base + N·A_persona(f)) / S</span>
+</header>
+
+<div class="grid">
+  <!-- ===================== INPUTS ===================== -->
+  <div>
+    <div class="panel">
+      <h2>1 · Superficie base</h2>
+      <div class="row">
+        <label>Modo de superficie</label>
+        <select id="modeSel" onchange="onModeSel()">
+          <option value="area">Suelo (por m²)</option>
+          <option value="seats">Butacas (por asiento)</option>
+        </select>
+      </div>
+      <div class="tabs">
+        <div class="tab on" id="tabLib" onclick="setSource('lib')">Biblioteca</div>
+        <div class="tab" id="tabManual" onclick="setSource('manual')">Manual</div>
+      </div>
+      <div id="libBlock">
+        <div class="row">
+          <label>Material de la biblioteca</label>
+          <select id="libSel" style="width:auto;min-width:240px" onchange="onLibSel()"></select>
+        </div>
+        <div class="scroll"><div id="libPreview" class="desc"></div></div>
+      </div>
+      <div id="manualBlock" class="hidden">
+        <div class="scroll"><div class="num-row" id="manualRow"></div></div>
+        <div class="desc">α de la superficie base · 100 Hz → 10 kHz (21 bandas)</div>
+      </div>
+      <div class="row" id="areaBlock">
+        <label>Superficie S (m²)</label>
+        <input type="number" id="baseArea" value="100" min="0" step="any">
+      </div>
+      <div class="row hidden" id="seatsBlock">
+        <label>Nº asientos</label>
+        <input type="number" id="numSeats" value="100" min="0" step="1">
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>2 · Ocupación de personas</h2>
+      <p class="desc" style="margin-top:-6px">Elige UN parámetro primario. Los demás se calculan automáticamente y nunca se contradicen.</p>
+      <div class="row">
+        <label>Determinar ocupación por</label>
+        <select id="primarySel" onchange="onPrimarySel()">
+          <option value="pct">% de ocupación</option>
+          <option value="pers">Nº de personas</option>
+          <option value="dens">Densidad (pers/m²)</option>
+        </select>
+      </div>
+      <div class="row">
+        <label id="valsLabel">Valores de % de ocupación</label>
+        <input type="text" id="scenVals" value="25, 50, 75, 100" style="width:200px">
+      </div>
+      <div class="desc">Lista separada por comas (ej.: 25, 50, 75, 100)</div>
+      <div class="row" style="margin-top:10px">
+        <label>Estado de las personas</label>
+        <select id="personState" onchange="onPersonState()">
+          <option value="sit">Sentadas</option>
+          <option value="stand">De pie</option>
+        </select>
+      </div>
+      <div class="row" id="aOcupBlock">
+        <label>Área física por persona A_ocup (m²) <span id="aOcupStateLabel">· sentada</span></label>
+        <input type="number" id="aOcupSit" value="0.5" min="0.01" step="any">
+        <input type="number" id="aOcupStand" value="0.25" min="0.01" step="any" class="hidden">
+      </div>
+      <div class="desc" id="ocupRelDesc">% ocupación = N × A_ocup / S × 100</div>
+    </div>
+
+    <div class="panel">
+      <h2>3 · Absorción por persona A_persona(f) — m²</h2>
+      <p class="desc" style="margin-top:-6px">Editables · la fila activa depende del estado. Valores de referencia (bibliografía acústica).</p>
+      <div class="scroll">
+        <div id="personaWrap"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <button onclick="calcular()">Calcular</button>
+      <span class="outmsg" id="outmsg"></span>
+    </div>
+  </div>
+
+  <!-- ===================== OUTPUT ===================== -->
+  <div>
+    <div class="panel">
+      <div class="row" style="justify-content:space-between;flex-wrap:wrap">
+        <h2 style="margin:0">Resultado · Tabla para EASE</h2>
+        <button onclick="generarPDF()">Generar informe PDF</button>
+      </div>
+      <div id="resultados"></div>
+    </div>
+    <div class="panel">
+      <h2>Copiar formato EASE</h2>
+      <div class="row">
+        <select id="fmtSel" style="width:auto">
+          <option value="tsv">TSV (pestañas)</option>
+          <option value="csv">CSV (comas)</option>
+          <option value="1col">1 columna (100..10k)</option>
+        </select>
+        <button class="sec" onclick="copiar()">Copiar al portapapeles</button>
+      </div>
+      <div class="desc" style="margin-bottom:8px">Pegar en EASE → Material Data → Absorption Coefficients</div>
+      <textarea id="taResult" readonly></textarea>
+    </div>
+  </div>
+</div>
+
+<footer>Herramienta "Cálculo Absorción EASE" · 21 bandas (100 Hz–10 kHz) · α_eff = (A_superficie + N×A_persona)/S · %_ocup = N×A_ocup/S · NRC = (α250+α500+α1k+α2k)/4 · valores de referencia, verifícalos según tu caso.</footer>
+
+<div id="printArea" aria-hidden="true"></div>
+
+<script>
+  const FREQ = ["100","125","160","200","250","315","400","500","630","800","1000","1250","1600","2000","2500","3150","4000","5000","6300","8000","10000"];
+  const BL = ["100","125","160","200","250","315","400","500","630","800","1k","1.25k","1.6k","2k","2.5k","3.15k","4k","5k","6.3k","8k","10k"];
+  const NRC_IDX = [4,7,10,13];
+
+  function expandOct(oct){
+    const o=[125,250,500,1000,2000,4000];
+    const lf=Math.log;
+    return FREQ.map(b=>{
+      if(b<=o[0]) return oct[0];
+      if(b>=o[o.length-1]) return oct[o.length-1];
+      for(let i=0;i<o.length-1;i++){
+        if(b>=o[i]&&b<=o[i+1]){
+          const t=(lf(b)-lf(o[i]))/(lf(o[i+1])-lf(o[i]));
+          return oct[i]+(oct[i+1]-oct[i])*t;
+        }
+      }
+      return oct[oct.length-1];
+    });
+  }
+
+  const LIBR=[
+    {mode:"area", name:"Hormigón", a:[0.01,0.01,0.015,0.02,0.02,0.02]},
+    {mode:"area", name:"Madera (parquet)", a:[0.15,0.11,0.10,0.07,0.06,0.07]},
+    {mode:"area", name:"Cerámica / porcelanato", a:[0.01,0.01,0.015,0.02,0.02,0.03]},
+    {mode:"area", name:"Vinilo", a:[0.02,0.02,0.03,0.03,0.04,0.04]},
+    {mode:"area", name:"Moqueta fina", a:[0.04,0.10,0.20,0.28,0.35,0.38]},
+    {mode:"area", name:"Moqueta gruesa", a:[0.10,0.20,0.35,0.45,0.50,0.55]},
+    {mode:"seats", name:"Butaca tela (por asiento)", a:[0.20,0.35,0.50,0.55,0.55,0.50]},
+    {mode:"seats", name:"Butaca semitapizada (por asiento)", full:true,
+      a:[0.09,0.09,0.10,0.11,0.12,0.13,0.13,0.14,0.15,0.15,0.16,0.16,0.15,0.15,0.15,0.16,0.16,0.16,0.16,0.16,0.16]},
+    {mode:"seats", name:"Butaca bien tapizada (por asiento)", full:true,
+      a:[0.15,0.15,0.18,0.22,0.25,0.30,0.35,0.40,0.42,0.43,0.45,0.45,0.45,0.45,0.43,0.42,0.40,0.38,0.37,0.35,0.35]},
+    {mode:"seats", name:"Butaca vinilo (por asiento)", a:[0.12,0.18,0.25,0.28,0.28,0.25]},
+    {mode:"seats", name:"Butaca madera (por asiento)", a:[0.02,0.03,0.04,0.05,0.05,0.05]}
+  ];
+  const PERS_OCT = { sit:[0.32,0.44,0.50,0.60,0.65,0.55], stand:[0.35,0.50,0.60,0.70,0.70,0.60] };
+  const PERS_DEF = { sit: expandOct(PERS_OCT.sit), stand: expandOct(PERS_OCT.stand) };
+  const PERS_LABEL = { sit:"sentadas", stand:"de pie" };
+
+  let source = "lib";
+
+  function fmt(v){
+    const r = Math.round(v*1000)/1000;
+    return r.toFixed(3).replace(/0+$/,"").replace(/\.$/,"");
+  }
+
+  function matAbs(i){ return LIBR[i].full ? LIBR[i].a.slice() : expandOct(LIBR[i].a); }
+
+  function buildLib(){
+    const sel = document.getElementById("libSel");
+    sel.innerHTML = "";
+    LIBR.forEach((m,i)=>{
+      const o = document.createElement("option");
+      o.value = i; o.textContent = m.name; sel.appendChild(o);
+    });
+    onLibSel();
+  }
+
+  function buildManual(){
+    const row = document.getElementById("manualRow");
+    row.innerHTML = "";
+    FREQ.forEach((f,i)=>{
+      const d = document.createElement("div");
+      const l = document.createElement("label");
+      l.textContent = BL[i];
+      const inp = document.createElement("input");
+      inp.type="number"; inp.step="any"; inp.value="0.10";
+      inp.id = "manual"+i;
+      d.appendChild(l); d.appendChild(inp);
+      row.appendChild(d);
+    });
+  }
+
+  function buildPersona(){
+    const wrap = document.getElementById("personaWrap");
+    wrap.innerHTML = "";
+    ["sit","stand"].forEach(st=>{
+      const row = document.createElement("div");
+      row.className = "prow" + (st==="sit" ? " sel" : "");
+      row.id = "prow-"+st;
+      const lbl = document.createElement("div");
+      lbl.className = "pcell lbl-item";
+      const lblSp = document.createElement("span");
+      lblSp.textContent = st==="sit" ? "Sentada" : "De pie";
+      lbl.appendChild(lblSp);
+      row.appendChild(lbl);
+      FREQ.forEach((f,i)=>{
+        const c = document.createElement("div");
+        c.className = "pcell";
+        const sp = document.createElement("span");
+        sp.textContent = BL[i];
+        const inp = document.createElement("input");
+        inp.type="number"; inp.step="any"; inp.value = PERS_DEF[st][i].toFixed(3);
+        inp.dataset.state = st; inp.dataset.band = i;
+        c.appendChild(sp); c.appendChild(inp);
+        row.appendChild(c);
+      });
+      wrap.appendChild(row);
+    });
+  }
+
+  function getPersonTable(state){
+    const vals = [];
+    document.querySelectorAll("[data-state='"+state+"']").forEach(inp=>{
+      vals.push(parseFloat(inp.value)||0);
+    });
+    return vals;
+  }
+
+  function getBaseAbsorption(){
+    if(source==="lib"){
+      const i = parseInt(document.getElementById("libSel").value||"0");
+      return matAbs(i);
+    }
+    const out = [];
+    for(let i=0;i<FREQ.length;i++){
+      const inp = document.getElementById("manual"+i);
+      out.push(inp ? (parseFloat(inp.value)||0) : 0);
+    }
+    return out;
+  }
+
+  function setSource(s){
+    source = s;
+    document.getElementById("tabLib").classList.toggle("on", s==="lib");
+    document.getElementById("tabManual").classList.toggle("on", s==="manual");
+    document.getElementById("libBlock").classList.toggle("hidden", s!=="lib");
+    document.getElementById("manualBlock").classList.toggle("hidden", s!=="manual");
+    if(s==="lib") onLibSel();
+  }
+
+  function onLibSel(){
+    const i = parseInt(document.getElementById("libSel").value||"0");
+    const m = LIBR[i];
+    const sel = document.getElementById("modeSel");
+    const areaB = document.getElementById("areaBlock");
+    const seatsB = document.getElementById("seatsBlock");
+    if(source==="lib"){
+      sel.value = m.mode;
+      areaB.classList.toggle("hidden", m.mode!=="area");
+      seatsB.classList.toggle("hidden", m.mode!=="seats");
+    }
+    document.getElementById("libPreview").innerHTML =
+      "α = [" + matAbs(i).map(fmt).join(" · ") + "]";
+    onModeSel();
+  }
+
+  function onModeSel(){
+    const sel = document.getElementById("modeSel").value;
+    document.getElementById("areaBlock").classList.toggle("hidden", sel!=="area");
+    document.getElementById("seatsBlock").classList.toggle("hidden", sel!=="seats");
+    const densOpt = document.getElementById("primarySel").options[2];
+    if(sel!=="area"){
+      densOpt.disabled = true;
+      if(document.getElementById("primarySel").value==="dens") document.getElementById("primarySel").value="pct";
+    } else {
+      densOpt.disabled = false;
+    }
+    updateRelDesc();
+  }
+
+  function onPrimarySel(){
+    const p = document.getElementById("primarySel").value;
+    const lbl = document.getElementById("valsLabel");
+    const inp = document.getElementById("scenVals");
+    const defs = { pct:["Valores de % de ocupación","25, 50, 75, 100"], pers:["Valores de nº de personas","50, 100, 150, 200"], dens:["Valores de densidad (pers/m²)","1, 2, 3"] };
+    lbl.textContent = defs[p][0];
+    if(!inp.dataset.touched) inp.value = defs[p][1];
+    updateRelDesc();
+  }
+
+  document.getElementById("scenVals").addEventListener("input", function(){ this.dataset.touched = "1"; });
+
+  function onPersonState(){
+    const st = document.getElementById("personState").value;
+    document.getElementById("prow-sit").classList.toggle("sel", st==="sit");
+    document.getElementById("prow-stand").classList.toggle("sel", st==="stand");
+    document.getElementById("aOcupSit").classList.toggle("hidden", st!=="sit");
+    document.getElementById("aOcupStand").classList.toggle("hidden", st!=="stand");
+    document.getElementById("aOcupStateLabel").textContent = "· "+PERS_LABEL[st];
+    updateRelDesc();
+  }
+
+  function updateRelDesc(){
+    const mode = document.getElementById("modeSel").value;
+    const st = document.getElementById("personState").value;
+    const d = document.getElementById("ocupRelDesc");
+    if(mode==="area"){
+      d.textContent = "% ocupación = N × A_ocup / S × 100  ·  A_ocup("+PERS_LABEL[st]+") y S definen cuántas personas caben.";
+    } else {
+      d.textContent = "% ocupación = N / nº asientos × 100 (ocupación de butacas).";
+    }
+  }
+
+  function parseList(raw){
+    return raw.split(",").map(s=>parseFloat(s.trim())).filter(v=>isFinite(v));
+  }
+
+  function calcular(){
+    const outmsg = document.getElementById("outmsg");
+    const results = document.getElementById("resultados");
+    outmsg.textContent = "";
+    let msg = "";
+
+    const mode = document.getElementById("modeSel").value;
+    const S = parseFloat(document.getElementById("baseArea").value);
+    const seats = parseInt(document.getElementById("numSeats").value);
+    const baseAbs = getBaseAbsorption();
+    const st = document.getElementById("personState").value;
+    const persAbs = getPersonTable(st);
+    const aOcup = parseFloat(document.getElementById(st==="sit"?"aOcupSit":"aOcupStand").value);
+
+    if(mode==="area"){ if(!isFinite(S)||S<=0) msg="Introduce una superficie S válida (>0)."; }
+    else { if(!isFinite(seats)||seats<=0) msg="Introduce un nº de asientos válido (>0)."; }
+    if(!isFinite(aOcup)||aOcup<=0) msg="Área física por persona A_ocup inválida.";
+
+    const primary = document.getElementById("primarySel").value;
+    const vals = parseList(document.getElementById("scenVals").value);
+    if(vals.length===0) msg = "Introduce al menos un valor en la lista.";
+
+    if(msg){ outmsg.textContent = msg; outmsg.style.color = "var(--err)"; results.innerHTML=""; return; }
+    outmsg.style.color = "var(--ok)";
+
+    const Sdiv = mode==="area" ? S : seats;
+    const warnings = [];
+    const rows = [];
+
+    vals.forEach(v=>{
+      let N, pctReq = null;
+      if(primary==="pct"){
+        pctReq = v;
+        N = mode==="area" ? Math.floor(v/100*S/aOcup + 1e-9) : Math.floor(v/100*seats + 1e-9);
+      } else if(primary==="pers"){
+        N = Math.round(v);
+      } else {
+        N = Math.floor(v*S + 1e-9);
+      }
+      const pctReal = mode==="area" ? N*aOcup/S*100 : N/seats*100;
+
+      const escLbl = primary==="pct" ? fmt(pctReq)+"%" : (primary==="pers" ? N+" pers." : fmt(v)+" pers/m²");
+      if(mode==="area"){
+        const ocupM2 = N*aOcup;
+        if(ocupM2 > S + 1e-9){
+          warnings.push(escLbl+": "+N+" pers. × "+fmt(aOcup)+" m² = "+fmt(ocupM2)+" m² superan S = "+fmt(S)+" m² — no caben físicamente");
+        }
+      } else if(N > seats){
+        warnings.push(escLbl+": "+N+" personas superan los "+seats+" asientos disponibles");
+      }
+
+      const aEff = baseAbs.map((ab,i)=>{
+        const A = (mode==="area" ? S*ab : seats*ab) + N*persAbs[i];
+        return Math.min(1, A/Sdiv);
+      });
+      const raw = baseAbs.map((ab,i)=> (mode==="area" ? S*ab : seats*ab) + N*persAbs[i]);
+      const capped = raw.some((A,i)=> A/Sdiv > 1);
+      const nrc = NRC_IDX.reduce((s,i)=>s+aEff[i],0)/4;
+      rows.push({N, pctReq, pctReal, dens: mode==="area" ? N/S : null, aEff, nrc, capped});
+    });
+
+    if(rows.some(r=>r.capped)){
+      warnings.push("algún α_eff superó 1 y se limitó a 1 (límite físico de EASE)");
+    }
+
+    if(warnings.length){
+      outmsg.textContent = "Avisos: " + warnings.join(" · ") + ".";
+      outmsg.style.color = "var(--err)";
+    }
+
+    const baseDesc = source==="lib"
+      ? LIBR[parseInt(document.getElementById("libSel").value||"0")].name
+      : "Manual";
+    const baseLabel = mode==="area" ? "S = "+S+" m²" : seats+" asientos";
+    const pctLbl = primary==="pct" ? "primario" : "derivado";
+
+    let html = "";
+    rows.forEach(r=>{
+      const pctShow = primary==="pct"
+        ? fmt(r.pctReq)+"% solicitado · "+fmt(r.pctReal)+"% real"
+        : fmt(r.pctReal)+"% de ocupación";
+      html += '<div class="res-cap">'+pctShow+' · '+r.N+' personas ('+PERS_LABEL[st]+')</div>';
+      html += '<div class="res-sub">'+baseDesc+' · '+baseLabel+' · % '+pctLbl+(mode==="area"?' · densidad '+fmt(r.dens)+' pers/m²':'')+'</div>';
+      html += '<div class="scroll"><table class="res"><tr><th></th>';
+      BL.forEach(b=>html+='<th>'+b+'</th>');
+      html += '<th>NRC</th></tr><tr><th>α_eff</th>';
+      r.aEff.forEach(v=>html+='<td>'+fmt(v)+'</td>');
+      html += '<td class="nrc">'+fmt(r.nrc)+'</td></tr></table></div>';
+    });
+    results.innerHTML = html;
+
+    lastReport = {
+      fecha: new Date().toLocaleString("es-ES"),
+      modeLabel: mode==="area" ? "Suelo (por m²)" : "Butacas (por asiento)",
+      baseName: baseDesc,
+      baseLabel: baseLabel,
+      baseAbs: baseAbs,
+      primary: primary,
+      primaryLabel: {pct:"% de ocupación", pers:"Nº de personas", dens:"Densidad (pers/m²)"}[primary],
+      scenVals: vals.join(", "),
+      stateLabel: PERS_LABEL[st],
+      aOcup: aOcup,
+      aOcupLabel: mode==="area" ? "N×A_ocup/S×100" : "N/asientos×100",
+      persAbs: persAbs,
+      rows: rows,
+      warnings: warnings
+    };
+
+    buildExport(rows);
+    outmsg.textContent += " Calculado: "+rows.length+" escenarios.";
+  }
+
+  let lastReport = null;
+  let lastRows = [];
+
+  function buildExport(rows){
+    lastRows = rows;
+    const fmtSel = document.getElementById("fmtSel").value;
+    const ta = document.getElementById("taResult");
+    const lines = [];
+    const sep = fmtSel==="tsv" ? "\t" : ",";
+    if(fmtSel!=="1col"){
+      lines.push("Pct%"+sep+"Frec_Hz"+sep+"alpha_eff");
+      rows.forEach(r=>{
+        r.aEff.forEach((v,i)=>{
+          lines.push(fmt(r.pctReal)+sep+FREQ[i]+sep+fmt(v));
+        });
+      });
+    } else {
+      lines.push("# Ocupacion "+rows.map(r=>fmt(r.pctReal)+"%").join(", ")+" | bandas 100..10000 Hz");
+      FREQ.forEach((b,i)=>{
+        lines.push(FREQ[i]+"\t"+rows.map(r=>fmt(r.aEff[i])).join("\t"));
+      });
+    }
+    ta.value = lines.join("\n");
+  }
+
+  document.getElementById("fmtSel").addEventListener("change", function(){
+    if(lastRows.length) buildExport(lastRows);
+  });
+
+  function copiar(){
+    const ta = document.getElementById("taResult");
+    if(!ta.value) calcular();
+    navigator.clipboard.writeText(ta.value).then(()=>{
+      document.getElementById("outmsg").textContent = "Copiado al portapapeles.";
+    }).catch(()=>{
+      ta.select();
+      document.execCommand("copy");
+      document.getElementById("outmsg").textContent = "Copiado.";
+    });
+  }
+
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  function tableHtml(head, body){
+    let h = '<table><tr>';
+    head.forEach(c=>h+='<th>'+c+'</th>');
+    h+='</tr>';
+    body.forEach(r=>{
+      h+='<tr>';
+      r.forEach(c=>h+='<td>'+c+'</td>');
+      h+='</tr>';
+    });
+    return h+'</table>';
+  }
+
+  function generarPDF(){
+    if(!lastReport) calcular();
+    const r = lastReport;
+    let h = '<h1>Cálculo Absorción EASE</h1>';
+    h += '<p class="rp"><b>Fecha:</b> '+esc(r.fecha)+'</p>';
+    h += '<p class="rp">α_eff(f) = (A_superficie + N × A_persona(f)) / S · 21 bandas (100 Hz – 10 kHz)</p>';
+
+    h += '<h2>1 · Parámetros de entrada</h2>';
+    h += tableHtml(["Parámetro","Valor"], [
+      ["Modo de superficie", esc(r.modeLabel)],
+      ["Material base", esc(r.baseName)],
+      ["Dimensión superficie", esc(r.baseLabel)],
+      ["Parámetro primario de ocupación", esc(r.primaryLabel)],
+      ["Valores evaluados", esc(r.scenVals)],
+      ["Estado de las personas", esc(r.stateLabel)],
+      ["Área física por persona A_ocup (m²)", esc(r.aOcup)+" · "+esc(r.aOcupLabel)]
+    ]);
+    h += '<div class="cap">Absorción del material base α_base (f)</div>';
+    h += tableHtml(BL, [r.baseAbs.map(fmt)]);
+    h += '<div class="cap">Absorción por persona A_persona (f) · '+esc(r.stateLabel)+' (m²)</div>';
+    h += tableHtml(BL, [r.persAbs.map(fmt)]);
+
+    h += '<h2>2 · Resultados α_eff para EASE</h2>';
+    r.rows.forEach(ro=>{
+      const pctShow = r.primary==="pct"
+        ? fmt(ro.pctReq)+"% solicitado · "+fmt(ro.pctReal)+"% real"
+        : fmt(ro.pctReal)+"% de ocupación";
+      h += '<div class="cap">'+pctShow+' · '+ro.N+' personas ('+esc(r.stateLabel)+')</div>';
+      h += tableHtml(BL.concat(["NRC"]), [ro.aEff.map(fmt).concat('<b>'+fmt(ro.nrc)+'</b>')]);
+    });
+
+    if(r.warnings.length){
+      h += '<p class="rp"><b>Avisos:</b> '+esc(r.warnings.join(" · "))+'</p>';
+    }
+    h += '<div class="note">Nota: los α_eff se limitan a 1 (máximo físico, exigencia de EASE). '
+      + 'A_persona son valores de referencia (bibliografía acústica) y deben verificarse según el proyecto. '
+      + 'NRC = (α250 + α500 + α1k + α2k)/4.</div>';
+
+    document.getElementById("printArea").innerHTML = h;
+    window.print();
+  }
+
+  buildLib();
+  buildManual();
+  buildPersona();
+  onModeSel();
+  calcular();
+</script>
+</body>
+</html>
