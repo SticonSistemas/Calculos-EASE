@@ -29,6 +29,10 @@
   button.sec{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
   .outmsg{font-size:12px;color:var(--ok);min-height:16px;display:block;margin-top:8px}
   .badge{background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:2px 10px;font-size:12px;color:var(--mut)}
+  .estudio{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:8px;flex-wrap:wrap}
+  .estudio .nombre{font-size:13px;font-weight:600}
+  .est-actions{display:flex;gap:6px}
+  .est-actions button{font-size:12px;padding:5px 10px}
   .tabs{display:flex;gap:6px;margin-bottom:12px}
   .tab{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 14px;font-size:13px;color:var(--mut);cursor:pointer}
   .tab.on{background:var(--acc);color:#06202e;font-weight:600}
@@ -181,22 +185,23 @@
     <div class="panel">
       <div class="row" style="justify-content:space-between;flex-wrap:wrap">
         <h2 style="margin:0">Resultado · Tabla para EASE</h2>
-        <button onclick="generarPDF()">Generar informe PDF</button>
+        <div class="row" style="margin:0">
+          <button onclick="generarPDF()">Generar informe PDF</button>
+          <button class="sec" onclick="copiarExcel()">Copiar a Excel</button>
+        </div>
       </div>
       <div id="resultados"></div>
     </div>
+
     <div class="panel">
-      <h2>Copiar formato EASE</h2>
+      <h2>Estudios</h2>
+      <p class="desc" style="margin-top:-6px">Guarda la configuración y los resultados actuales para probar versiones o comparar escenarios. Se almacenan en este navegador (localStorage).</p>
       <div class="row">
-        <select id="fmtSel" style="width:auto">
-          <option value="tsv">TSV (pestañas)</option>
-          <option value="csv">CSV (comas)</option>
-          <option value="1col">1 columna (100..10k)</option>
-        </select>
-        <button class="sec" onclick="copiar()">Copiar al portapapeles</button>
+        <label>Nombre del estudio</label>
+        <input type="text" id="studyName" style="width:220px">
+        <button class="sec" onclick="guardarEstudio()">Guardar versión actual</button>
       </div>
-      <div class="desc" style="margin-bottom:8px">Pegar en EASE → Material Data → Absorption Coefficients</div>
-      <textarea id="taResult" readonly></textarea>
+      <div id="estudios"></div>
     </div>
   </div>
 </div>
@@ -256,6 +261,10 @@
   function fmt(v){
     const r = Math.round(v*1000)/1000;
     return r.toFixed(3).replace(/0+$/,"").replace(/\.$/,"");
+  }
+
+  function fmt2(v){
+    return (Math.round(v*100)/100).toFixed(2);
   }
 
   function matAbs(i){ return LIBR[i].full ? LIBR[i].a.slice() : expandOct(LIBR[i].a); }
@@ -355,7 +364,7 @@
       seatsB.classList.toggle("hidden", m.mode!=="seats");
     }
     document.getElementById("libPreview").innerHTML =
-      "α = [" + matAbs(i).map(fmt).join(" · ") + "]";
+      "α = [" + matAbs(i).map(fmt2).join(" · ") + "]";
     onModeSel();
   }
 
@@ -540,9 +549,10 @@
       html += '<div class="res-sub">'+baseDesc+' · '+baseLabel+' · % '+pctLbl+(mode==="area"?' · densidad '+fmt(r.dens)+' pers/m²':'')+' · '+typeLabel+' (k='+fmt(pK)+')'+'</div>';
       html += '<div class="scroll"><table class="res"><tr><th></th>';
       BL.forEach(b=>html+='<th>'+b+'</th>');
+      html += '<th>'+b+'</th>';
       html += '<th>NRC</th></tr><tr><th>α_eff</th>';
-      r.aEff.forEach(v=>html+='<td>'+fmt(v)+'</td>');
-      html += '<td class="nrc">'+fmt(r.nrc)+'</td></tr></table></div>';
+      r.aEff.forEach(v=>html+='<td>'+fmt2(v)+'</td>');
+      html += '<td class="nrc">'+fmt2(r.nrc)+'</td></tr></table></div>';
     });
     results.innerHTML = html;
 
@@ -568,50 +578,170 @@
       warnings: warnings
     };
 
-    buildExport(rows);
     outmsg.textContent += " Calculado: "+rows.length+" escenarios.";
   }
 
   let lastReport = null;
-  let lastRows = [];
 
-  function buildExport(rows){
-    lastRows = rows;
-    const fmtSel = document.getElementById("fmtSel").value;
-    const ta = document.getElementById("taResult");
-    const lines = [];
-    const sep = fmtSel==="tsv" ? "\t" : ",";
-    if(fmtSel!=="1col"){
-      lines.push("Pct%"+sep+"Frec_Hz"+sep+"alpha_eff");
-      rows.forEach(r=>{
-        r.aEff.forEach((v,i)=>{
-          lines.push(fmt(r.pctReal)+sep+FREQ[i]+sep+fmt(v));
-        });
-      });
-    } else {
-      lines.push("# Ocupacion "+rows.map(r=>fmt(r.pctReal)+"%").join(", ")+" | bandas 100..10000 Hz");
-      FREQ.forEach((b,i)=>{
-        lines.push(FREQ[i]+"\t"+rows.map(r=>fmt(r.aEff[i])).join("\t"));
-      });
-    }
-    ta.value = lines.join("\n");
-  }
-
-  document.getElementById("fmtSel").addEventListener("change", function(){
-    if(lastRows.length) buildExport(lastRows);
-  });
-
-  function copiar(){
-    const ta = document.getElementById("taResult");
-    if(!ta.value) calcular();
-    navigator.clipboard.writeText(ta.value).then(()=>{
-      document.getElementById("outmsg").textContent = "Copiado al portapapeles.";
+  function copiarExcel(){
+    if(!lastReport) calcular();
+    const r = lastReport;
+    const two = fmt2;
+    const L = [];
+    L.push(["Cálculo de Absorción EASE", r.fecha]);
+    L.push([]);
+    L.push(["Configuración del cálculo"]);
+    L.push(["Modo de superficie", r.modeLabel]);
+    L.push(["Material base", r.baseName]);
+    L.push(["Dimensión superficie", r.baseLabel]);
+    L.push(["Parámetro primario de ocupación", r.primaryLabel]);
+    L.push(["Valores evaluados", r.scenVals]);
+    L.push(["Estado de las personas", r.stateLabel]);
+    L.push(["Tipo de persona", r.personType+" (k="+fmt(r.pK)+")"]);
+    L.push(["Área física por persona A_ocup (m²)", r.aOcup+" · "+r.aOcupLabel]);
+    L.push([]);
+    const labels = r.rows.map(ro=>{
+      if(r.primary==="pct") return fmt(ro.pctReq)+"%";
+      if(r.primary==="pers") return ro.N+" pers.";
+      return fmt(ro.dens)+" p/m²";
+    });
+    L.push(["Frecuencia (Hz)"].concat(labels).concat(["N personas","NRC"]));
+    FREQ.forEach((f,i)=>{
+      L.push([f].concat(r.rows.map(ro=>two(ro.aEff[i]))).concat([r.rows[i].N, two(r.rows[i].nrc)]));
+    });
+    const text = L.map(a=>a.join("\t")).join("\n");
+    navigator.clipboard.writeText(text).then(()=>{
+      document.getElementById("outmsg").textContent = "Copiado a Excel (configuración, frecuencias y coeficientes).";
     }).catch(()=>{
-      ta.select();
-      document.execCommand("copy");
-      document.getElementById("outmsg").textContent = "Copiado.";
+      const ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); ta.remove();
+      document.getElementById("outmsg").textContent = "Copiado a Excel.";
     });
   }
+
+  const STUDY_KEY = "ease_estudios";
+
+  function loadEstudios(){
+    try{ return JSON.parse(localStorage.getItem(STUDY_KEY))||[]; }catch(e){ return []; }
+  }
+
+  function saveEstudios(list){
+    localStorage.setItem(STUDY_KEY, JSON.stringify(list));
+  }
+
+  function captureState(){
+    const manual = [];
+    for(let i=0;i<FREQ.length;i++){
+      const inp = document.getElementById("manual"+i);
+      manual.push(inp ? inp.value : "0");
+    }
+    const persona = {};
+    ["sit","stand"].forEach(st=>{
+      persona[st] = [];
+      document.querySelectorAll("[data-state='"+st+"']").forEach(cia=> persona[st].push(cia.value));
+    });
+    return {
+      fonte: source,
+      mode: document.getElementById("modeSel").value,
+      libSel: document.getElementById("libSel").value,
+      manual: manual,
+      base: document.getElementById("baseArea").value,
+      seats: document.getElementById("numSeats").value,
+      primary: document.getElementById("primarySel").value,
+      scenVals: document.getElementById("scenVals").value,
+      densSel: document.getElementById("densSel").value,
+      st: document.getElementById("personState").value,
+      aOcupSit: document.getElementById("aOcupSit").value,
+      aOcupStand: document.getElementById("aOcupStand").value,
+      personType: document.getElementById("personType").value,
+      persona: persona
+    };
+  }
+
+  function applyState(s){
+    setSource(s.fonte || "lib");
+    document.getElementById("modeSel").value = s.mode;
+    document.getElementById("libSel").value = s.libSel;
+    if(s.fonte==="manual"){
+      (s.manual||[]).forEach((v,i)=>{
+        const id = document.getElementById("manual"+i);
+        if(id) id.value = v;
+      });
+    }
+    document.getElementById("baseArea").value = s.base;
+    document.getElementById("numSeats").value = s.seats;
+    document.getElementById("primarySel").value = s.primary;
+    document.getElementById("scenVals").value = s.scenVals;
+    document.getElementById("scenVals").dataset.touched = "1";
+    document.getElementById("densSel").value = s.densSel;
+    document.getElementById("densSel").dataset.touched = "1";
+    document.getElementById("personState").value = s.st;
+    document.getElementById("aOcupSit").value = s.aOcupSit;
+    document.getElementById("aOcupStand").value = s.aOcupStand;
+    document.getElementById("personType").value = s.personType;
+    document.querySelectorAll("[data-state]").forEach(cia=>{
+      if(s.persona && s.persona[cia.dataset.state]){
+        const v = s.persona[cia.dataset.state][parseInt(cia.dataset.band)];
+        if(v!==undefined) cia.value = v;
+      }
+    });
+    onModeSel(); onPrimarySel(); onPersonState(); onPersonType();
+    if(s.fonte==="lib") onLibSel();
+    calcular();
+  }
+
+  function guardarEstudio(){
+    const list = loadEstudios();
+    const name = document.getElementById("studyName").value.trim() || ("Estudio "+(list.length+1));
+    const rec = {
+      id: Date.now(),
+      name: name,
+      date: new Date().toLocaleString("es-ES"),
+      state: captureState()
+    };
+    list.unshift(rec);
+    saveEstudios(list);
+    document.getElementById("studyName").value = "";
+    renderEstudios();
+    document.getElementById("outmsg").textContent = "Estudio guardado: "+name+".";
+  }
+
+  function cargarEstudio(id){
+    const list = loadEstudios();
+    const rec = list.find(e=>e.id===id);
+    if(!rec) return;
+    applyState(rec.state);
+    renderEstudios();
+    document.getElementById("outmsg").textContent = "Estudio cargado: "+rec.name+".";
+  }
+
+  function borrarEstudio(id){
+    saveEstudios(loadEstudios().filter(e=>e.id!==id));
+    renderEstudios();
+  }
+
+  function renderEstudios(){
+    const box = document.getElementById("estudios");
+    const list = loadEstudios();
+    box.innerHTML = "";
+    if(!list.length){
+      box.innerHTML = '<span class="desc">Aún no hay estudios guardados. Configura un cálculo y pulsa "Guardar versión actual".</span>';
+      return;
+    }
+    list.forEach(e=>{
+      const d = document.createElement("div");
+      d.className = "estudio";
+      d.innerHTML = '<span><span class="nombre">'+esc(e.name)+'</span> <span class="desc">'+esc(e.date)+'</span></span>'+
+        '<div class="est-actions">'+
+          '<button class="sec" onclick="cargarEstudio('+e.id+')">Cargar</button>'+
+          '<button class="sec" onclick="borrarEstudio('+e.id+')">Eliminar</button>'+
+        '</div>';
+      box.appendChild(d);
+    });
+  }
+
+  renderEstudios();
 
   function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
@@ -647,7 +777,7 @@
       ["Área física por persona A_ocup (m²)", esc(r.aOcup)+" · "+esc(r.aOcupLabel)]
     ]);
     h += '<div class="cap">Absorción del material base α_base (f)</div>';
-    h += tableHtml(BL, [r.baseAbs.map(fmt)]);
+    h += tableHtml(BL, [r.baseAbs.map(fmt2)]);
     h += '<div class="cap">Absorción por persona A_persona (f) efectiva · '+esc(r.stateLabel)+' (m²) · referencia × k='+fmt(r.pK)+'</div>';
     h += tableHtml(BL, [r.persAbs.map(fmt)]);
 
@@ -660,7 +790,7 @@
       h += '<div class="rp">'+esc(r.baseName)+' · '+esc(r.baseLabel)+' · % '+esc(r.pctLbl)
         + (r.isArea ? ' · densidad '+fmt(ro.dens)+' pers/m²' : '')
         + ' · '+esc(r.personType)+' (k='+fmt(r.pK)+')</div>';
-      h += tableHtml(BL.concat(["NRC"]), [ro.aEff.map(fmt).concat('<b>'+fmt(ro.nrc)+'</b>')]);
+      h += tableHtml(BL.concat(["NRC"]), [ro.aEff.map(fmt2).concat('<b>'+fmt2(ro.nrc)+'</b>')]);
     });
 
     if(r.warnings.length){
