@@ -313,7 +313,7 @@
         const sp = document.createElement("span");
         sp.textContent = BL[i];
         const inp = document.createElement("input");
-        inp.type="number"; inp.step="any"; inp.value = PERS_DEF[st][i].toFixed(3);
+        inp.type="number"; inp.step="any"; inp.value = PERS_DEF[st][i].toFixed(2);
         inp.dataset.state = st; inp.dataset.band = i;
         c.appendChild(sp); c.appendChild(inp);
         row.appendChild(c);
@@ -549,7 +549,6 @@
       html += '<div class="res-sub">'+baseDesc+' · '+baseLabel+' · % '+pctLbl+(mode==="area"?' · densidad '+fmt(r.dens)+' pers/m²':'')+' · '+typeLabel+' (k='+fmt(pK)+')'+'</div>';
       html += '<div class="scroll"><table class="res"><tr><th></th>';
       BL.forEach(b=>html+='<th>'+b+'</th>');
-      html += '<th>'+b+'</th>';
       html += '<th>NRC</th></tr><tr><th>α_eff</th>';
       r.aEff.forEach(v=>html+='<td>'+fmt2(v)+'</td>');
       html += '<td class="nrc">'+fmt2(r.nrc)+'</td></tr></table></div>';
@@ -779,7 +778,7 @@
     h += '<div class="cap">Absorción del material base α_base (f)</div>';
     h += tableHtml(BL, [r.baseAbs.map(fmt2)]);
     h += '<div class="cap">Absorción por persona A_persona (f) efectiva · '+esc(r.stateLabel)+' (m²) · referencia × k='+fmt(r.pK)+'</div>';
-    h += tableHtml(BL, [r.persAbs.map(fmt)]);
+    h += tableHtml(BL, [r.persAbs.map(fmt2)]);
 
     h += '<h2>2 · Resultados α_eff para EASE</h2>';
     r.rows.forEach(ro=>{
