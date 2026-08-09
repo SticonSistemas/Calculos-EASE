@@ -5,7 +5,7 @@ Aplicación de cálculo de absorción acústica para importar en EASE. App web *
 ## Arquitectura (no obvio)
 
 - Todo vive en un único `<script>` dentro de `index.html`. `index.html` es el entrypoint y toda la app.
-- En init se ejecutan en orden: `buildLib(); buildManual(); buildPersona(); onModeSel(); onPersonType(); calcular();`
+- Al cargar se ejecuta `renderEstudios()` y luego, al final del script, `buildLib(); buildManual(); buildPersona(); onModeSel(); onPersonType(); calcular();`
 - **Dos conceptos de "persona" que NO son lo mismo** (no confundir):
   - `A_ocup` = área física por persona (m²), se usa solo para ocupación/densidad/capacidad (`% = N×A_ocup/S`).
   - `A_persona(f)` = absorción acústica por persona, tabla de 21 bandas, **escalada por el factor `k` de tipo de persona**.
@@ -45,7 +45,7 @@ $code = [regex]::Match($html, '(?s)<script>(.*)</script>').Groups[1].Value
 $code | node -e "try{ new Function(require('fs').readFileSync(0,'utf8')); console.log('OK') }catch(e){ console.log('ERROR '+e.message) }"
 ```
 
-Para la matemática, prototipa en un script `node` suelto en `C:\Users\stico\AppData\Local\Temp\opencode` (replica `expandOct`, N, α_eff, NRC) en lugar de depender del DOM.
+**`jsdom` está instalado en `C:\Users\stico\AppData\Local\Temp\opencode`** (con `npm i jsdom`). Es la forma de probar la app **completa** (flujos de estudios, export, decimales, validaciones) sin navegador: cargar el HTML con `runScripts:"dangerously"`, y para `copiarExcel`/PDF hay que hacer stub de `navigator.clipboard` y `window.print`. La sintaxis-check no alcanza: bugs reales se detectan ejecutando (p. ej. `r.rows[i]` con menos escenarios que 21 bandas, o `onPersonType` sobrescribiendo `A_ocup` al cargar un estudio). Para la matemática pura sin DOM, prototipa en node suelto replicando `expandOct`, N, α_eff, NRC.
 
 ## Git / despliegue
 
