@@ -604,10 +604,18 @@
       if(r.primary==="pers") return ro.N+" pers.";
       return fmt(ro.dens)+" p/m²";
     });
-    L.push(["Frecuencia (Hz)"].concat(labels).concat(["N personas","NRC"]));
+    L.push(["Tabla de coeficientes α_eff(f)"]);
+    L.push(["Frecuencia (Hz)"].concat(labels));
     FREQ.forEach((f,i)=>{
-      L.push([f].concat(r.rows.map(ro=>two(ro.aEff[i]))).concat([r.rows[i].N, two(r.rows[i].nrc)]));
+      L.push([f].concat(r.rows.map(ro=>two(ro.aEff[i]))));
     });
+    L.push([]);
+    L.push(["Resumen por escenario"]);
+    L.push(["Escenario"].concat(labels));
+    L.push(["N personas"].concat(r.rows.map(ro=>ro.N)));
+    L.push(["Densidad (pers/m²)"].concat(r.rows.map(ro=>r.isArea ? fmt(ro.dens) : "—")));
+    L.push(["% ocupación real"].concat(r.rows.map(ro=>fmt(ro.pctReal)+"%")));
+    L.push(["NRC"].concat(r.rows.map(ro=>two(ro.nrc))));
     const text = L.map(a=>a.join("\t")).join("\n");
     navigator.clipboard.writeText(text).then(()=>{
       document.getElementById("outmsg").textContent = "Copiado a Excel (configuración, frecuencias y coeficientes).";
