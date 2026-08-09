@@ -129,7 +129,7 @@
       </div>
       <div class="row">
         <label id="valsLabel">Valores de % de ocupación</label>
-        <input type="text" id="scenVals" value="25, 50, 75, 100" style="width:200px">
+        <input type="text" id="scenVals" value="25, 50, 75" style="width:200px">
         <select id="densSel" class="hidden" onchange="onDensSel()">
           <option value="1">1 pers/m²</option>
           <option value="2" selected>2 pers/m²</option>
@@ -139,7 +139,7 @@
           <option value="6">6 pers/m²</option>
         </select>
       </div>
-      <div class="desc" id="valsHint">Lista separada por comas (ej.: 25, 50, 75, 100)</div>
+      <div class="desc" id="valsHint">Lista separada por comas (ej.: 25, 50, 75)</div>
       <div class="row" style="margin-top:10px">
         <label>Estado de las personas</label>
         <select id="personState" onchange="onPersonState()">
@@ -388,7 +388,7 @@
     const inp = document.getElementById("scenVals");
     const densSel = document.getElementById("densSel");
     const hint = document.getElementById("valsHint");
-    const defs = { pct:["Valores de % de ocupación","25, 50, 75, 100"], pers:["Valores de nº de personas","50, 100, 150, 200"], dens:["Densidad (pers/m²)","2"] };
+    const defs = { pct:["Valores de % de ocupación","25, 50, 75"], pers:["Valores de nº de personas","50, 100, 150, 200"], dens:["Densidad (pers/m²)","2"] };
     lbl.textContent = defs[p][0];
     if(p==="dens"){
       inp.classList.add("hidden");
