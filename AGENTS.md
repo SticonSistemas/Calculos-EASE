@@ -12,7 +12,10 @@ Aplicación de cálculo de absorción acústica para importar en EASE. App web *
 - Bandas: `FREQ` = 21 tercios de octava (100 Hz–10 kHz); `BL` = etiquetas para mostrar; `NRC_IDX=[4,7,10,13]` = índices de α250/α500/α1k/α2k para el NRC.
 - `expandOct(oct)` interpola 6 valores de octava (125–4k) a las 21 bandas con interpolación logarítmica. Materiales de `LIBR` con `full:true` ya traen las 21 bandas reales y no deben pasar por `expandOct`.
 - Tipos de persona: `PERS_TYPES` (niño/joven/adulto/mixto) con `{sit, stand, k}` donde `k` multiplica `A_persona` en el cálculo.
-- `fmt(v)` es el formateador canónico (3 decimales, elimina ceros finales). Usarlo en lugar de `toFixed` directo.
+- **Dos formateadores**, usarlos según el valor, no `toFixed` directo:
+  - `fmt(v)` = 3 decimales, elimina ceros finales → para % , densidad, A_ocup, escenarios.
+  - `fmt2(v)` = **siempre 2 decimales** → para TODOS los valores de absorción (α_base, α_eff, NRC, A_persona) en pantalla, PDF y export. La tabla editable de A_persona usa `.toFixed(2)`.
+- La página es de **una sola columna**: las entradas se apilan arriba y los resultados aparecen debajo de la sección de cálculo.
 
 ## Reglas de cálculo (código crítico en `calcular()`)
 
@@ -21,6 +24,16 @@ Aplicación de cálculo de absorción acústica para importar en EASE. App web *
 - Se rastrean `pctReq` (solicitado) y `pctReal` (real tras redondeo); ambos se muestran en resultados y PDF.
 - Tope de densidad 6 pers/m²: en modo `dens` el campo es un `<select>` 1–6; en modo `pers`, error si `N > S×6`.
 - `lastReport` es la fuente del PDF: si agregas algo a la salida de pantalla, también debes guardarlo en `lastReport` o no saldrá en `generarPDF()` (bug real ya corregido). El bloque `@media print` llena `#printArea` y el PDF se genera vía `window.print()`.
+- La antigua sección "Copiar formato EASE" fue eliminada. Hoy el único export es `copiarExcel()` (botón "Copiar a Excel"), que arma un TSV desde `lastReport`: bloque de configuración + tabla de coeficientes (frecuencias × escenarios) + resumen por escenario (N, densidad, % real, NRC). Leer siempre `ro.aEff[i]` con `i` de las 21 bandas; **nunca** indexar `r.rows[i]` por índice de banda: `rows.length` = nº de escenarios, no 21 (bug real ya corregido).
+
+## Estudios (guardar/cargar versiones)
+
+- Persistencia vía `localStorage`, clave `ease_estudios` (array de `{id, name, date, state}`).
+- `captureState()` serializa todos los inputs; `applyState(s)` los restaura y llama `calcular()`. El JSON de estado usa claves abreviadas: `fonte` = fuente (lib/manual) y `st` = estado de persona (sit/stand).
+- **Gotchas de `applyState` (orden crítico, dos bugs reales ya corregidos)**:
+  - Setear `dataset.touched="1"` en `scenVals` y `densSel` **antes** de llamar a `onPrimarySel()`/`onModeSel()`, o esos handlers reescriben los valores guardados con los defaults.
+  - Restaurar `aOcupSit`/`aOcupStand` **después** de `onPersonType()`, porque ese handler los sobrescribe con el valor estándar del tipo y se perdía el `A_ocup` editado a mano (los resultados cargados no coincidían con los guardados).
+- `renderEstudios()` se invoca al cargar; los botones Cargar/Eliminar llaman `cargarEstudio(id)` / `borrarEstudio(id)` con ids numéricos.
 
 ## Verificación (no hay framework de test)
 

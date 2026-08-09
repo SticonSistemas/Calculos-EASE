@@ -684,8 +684,6 @@
     document.getElementById("densSel").value = s.densSel;
     document.getElementById("densSel").dataset.touched = "1";
     document.getElementById("personState").value = s.st;
-    document.getElementById("aOcupSit").value = s.aOcupSit;
-    document.getElementById("aOcupStand").value = s.aOcupStand;
     document.getElementById("personType").value = s.personType;
     document.querySelectorAll("[data-state]").forEach(cia=>{
       if(s.persona && s.persona[cia.dataset.state]){
@@ -695,6 +693,9 @@
     });
     onModeSel(); onPrimarySel(); onPersonState(); onPersonType();
     if(s.fonte==="lib") onLibSel();
+    // A_ocup se restaura DESPUÉS de onPersonType(), que lo reescribe con el valor estándar del tipo
+    document.getElementById("aOcupSit").value = s.aOcupSit;
+    document.getElementById("aOcupStand").value = s.aOcupStand;
     calcular();
   }
 
